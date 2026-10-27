@@ -8,7 +8,7 @@
   "tests": {
     "legacy_service": 17,
     "score_frontend": 18,
-    "runtime_and_managed_http": 22,
+    "runtime_and_managed_http": 23,
     "standalone_contract": 2
   },
   "cuda": {
@@ -60,8 +60,9 @@
     "No AMD kernel/speed/VRAM/audio certification",
     "No new subjective audio approval",
     "No new QQ/WeChat or natural-language tool-selection test",
-    "XPU: one integrated GPU on one machine; no discrete Arc, other drivers or Linux XPU runs",
-    "XPU: audio was checked for validity and shape, not by listening against the CUDA output"
+    "XPU: Windows validation used one Arc 130T iGPU; Linux validation used one Arc A770M; other devices and drivers are not certified",
+    "XPU: audio was checked for validity and shape, not by listening against the CUDA output",
+    "Linux XPU: SVS diagnostics passed, but singing audio was not run without the extra weight and aligned reference"
   ],
   "compatibility_source_exact_bytes_preserved": true,
   "xpu": {
@@ -124,5 +125,33 @@
       }
     ],
     "unsupported_ops": "PYTORCH_ENABLE_XPU_FALLBACK=1 is set so unsupported ops fall back to CPU; no fallback warning was recorded in these runs"
+  },
+  "xpu_linux": {
+    "status": "experimental",
+    "date": "2026-10-27",
+    "host": "native Ubuntu 26.04.1 LTS",
+    "gpu": "Intel(R) Arc(TM) A770M Graphics",
+    "torch": "2.11.0+xpu (xpu runtime 20250302), Python 3.11",
+    "opencl": "intel-opencl-icd configured; clinfo reports two Intel OpenCL platforms; FFT passed",
+    "clean_install_with_setup_runtime": {
+      "tts": "passed",
+      "rvc": "passed",
+      "svs": "passed"
+    },
+    "diagnostics": "matmul, conv1d, fft and inference imports passed on xpu:0 for all three engines",
+    "tts": {
+      "cute_http": "passed; 6.56 seconds at 24000 Hz mono on xpu:0",
+      "gentle_http": "passed; 10.08 seconds at 24000 Hz mono on xpu:0",
+      "linux_compatibility": "The float64 HiFi-GAN F0 predictor runs on CPU because Linux XPU rejected its weight_norm kernel; llm, flow and the main hift network remain on XPU"
+    },
+    "rvc": {
+      "http": "passed; 6.54 seconds at 40000 Hz mono on xpu:0",
+      "f0_devices": ["xpu:0"]
+    },
+    "svs": {
+      "diagnostics": "passed",
+      "audio_validation": "not_run; extra weight and aligned reference were not configured"
+    },
+    "subjective_listening": "pending"
   }
 }

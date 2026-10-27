@@ -1,6 +1,6 @@
 # Feiyu Voice Service v0.2.0
 
-For AI agent installation, start with [INSTALL_AGENT.md](INSTALL_AGENT.md): select NVIDIA CUDA, AMD WSL ROCm or Intel XPU (native Windows), install independent inference environments, download the models, and select generated `runtime_profile` files. The API uses a separate CPU environment. Choose `configs/voice_service.cuda.example.json` or `configs/voice_service.rocm.example.json`, then save your machine's settings as `configs/voice_service.json`. AMD is experimental without physical GPU validation. Legacy package-local runtime configuration remains supported.
+For AI agent installation, start with [INSTALL_AGENT.md](INSTALL_AGENT.md): select NVIDIA CUDA, AMD WSL ROCm or Intel XPU (native Windows/Linux), install independent inference environments, download the models, and select generated `runtime_profile` files. The API uses a separate CPU environment. Choose `configs/voice_service.cuda.example.json`, `configs/voice_service.rocm.example.json` or `configs/voice_service.xpu.example.json`, then save your machine's settings as `configs/voice_service.json`. AMD is experimental without physical GPU validation. Legacy package-local runtime configuration remains supported.
 
 ```bash
 python -m venv .venv
@@ -19,4 +19,4 @@ Submission returns HTTP202 and a job ID. Poll until `success`, then download WAV
 
 Ordinary TTS uses its own model directly. Voice conversion uses RVC. Score singing needs the optional SVS setup and then uses the selected RVC. Manual breath processing is never automatic. MIDI/ABC lyrics currently support Mandarin, one character per note, `_` for melisma; expand ABC repeats before importing.
 
-Validation scope and results: [VALIDATION.json](VALIDATION.json). AMD hardware testing remains pending; Intel XPU is validated on a single Arc 130T iGPU only.
+Validation scope and results: [VALIDATION.json](VALIDATION.json). AMD hardware testing remains pending. Intel XPU is validated on one Windows Arc 130T iGPU and one Linux Arc A770M; Linux singing audio remains pending.

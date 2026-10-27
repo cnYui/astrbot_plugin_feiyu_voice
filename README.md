@@ -89,7 +89,7 @@ flowchart LR
 | 按谱唱歌 SVS | MIDI／ABC 解析主旋律与时值、中文歌词转音素，SoulX-Singer 先按谱演唱，随后由 RVC 转成肥鱼音色；交付 40 kHz 单声道人声 |
 | 歌曲分离与混音 | MSST 等外部工具生成原唱人声和伴奏；agent 将人声交给 RVC，再用 FFmpeg 等工具对齐采样率、时间和音量后混音 |
 | 声音服务 | FastAPI＋持久化任务记录＋串行推理队列；Bearer 鉴权、资源上传、异步任务、音频下载 |
-| 显卡环境 | PyTorch CUDA／WSL ROCm／Intel XPU（Windows 原生）可选，各引擎独立环境；TTS ONNX 前端走 CPU，ROCm 预设的 RMVPE 也走 CPU，主网络走所选 GPU |
+| 显卡环境 | PyTorch CUDA／WSL ROCm／Intel XPU（Windows／Linux 原生）可选，各引擎独立环境；TTS ONNX 前端走 CPU，ROCm 预设的 RMVPE 也走 CPU，主网络走所选 GPU |
 
 “乐谱＋歌词直接生成肥鱼人声”已经由按谱唱歌接口串联完成，内部同时需要 SVS 和 RVC。RVC 单独接收的是音频。按谱合成还需要安装 SVS 权重并配置自有已对齐参考；这些配置由 agent 按指南处理。
 
@@ -129,7 +129,7 @@ RVC 当前默认 `pitch_shift=0`、`index_rate=0.3`、`protect=0.33`，使用匹
 
 Windows＋WSL、RTX 5090 Laptop GPU 上完成 TTS、RVC 和按谱唱歌的真实 HTTP 验证；CUDA RVC 从空目录安装与换声验证通过。AstrBot 4.29.3 本地 WebChat 验证过命令与音频返回。
 
-Intel XPU（Arc／Core Ultra 核显，Windows 原生，不经过 WSL）已在一台 Arc 130T 核显上跑通 TTS、RVC 和按谱唱歌，速度明显慢于独显，详见 [验证记录](server/VALIDATION.json)；AMD ROCm 目前提供适配和安装预设，尚无实体 A 卡测试；DSH 原生工具桥接、外部 Bot 平台以及各机器上的 MSST 整曲编排，需要在对应环境验收。按谱输入当前以中文单音主旋律为主，一字多音使用 `_`，ABC 反复记号先展开。硬件速度和显存占用以本机诊断、实际样例为准。
+Intel XPU（Arc／Core Ultra 核显）支持 Windows／Linux 原生运行，不经过 WSL；Windows Arc 130T 已跑通 TTS、RVC 和按谱唱歌，Linux Arc A770M 已通过三种引擎诊断及 TTS／RVC 真实 HTTP 验证，Linux 按谱唱歌尚待额外权重与参考音频验收，详见 [验证记录](server/VALIDATION.json)；AMD ROCm 目前提供适配和安装预设，尚无实体 A 卡测试；DSH 原生工具桥接、外部 Bot 平台以及各机器上的 MSST 整曲编排，需要在对应环境验收。按谱输入当前以中文单音主旋律为主，一字多音使用 `_`，ABC 反复记号先展开。硬件速度和显存占用以本机诊断、实际样例为准。
 
 ## 参考与许可
 

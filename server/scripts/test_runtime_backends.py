@@ -116,14 +116,22 @@ class RuntimeTests(unittest.TestCase):
 
     def test_native_windows_host_skips_wsl_wrapping_and_path_mapping(self):
         native = dict(profile(backend="xpu"), host="windows", python="C:/env/python.exe")
-        with patch.object(pipeline.os, "name", "nt"):
+        with patch.object(pipeline, "os", SimpleNamespace(name="nt")):
             command = pipeline.runtime_command(native, ROOT / "feiyu_runtime/worker.py", "--kind", "tts")
             self.assertEqual(command[0], "C:/env/python.exe")
             self.assertNotIn("wsl.exe", command)
             self.assertEqual(pipeline.linux_path(ROOT), str(ROOT.resolve()))
-            wsl = pipeline.runtime_command(profile(), ROOT / "feiyu_runtime/worker.py")
+            with patch.object(pipeline, "linux_path", return_value="/mnt/c/repo/worker.py"):
+                wsl = pipeline.runtime_command(profile(), ROOT / "feiyu_runtime/worker.py")
             self.assertEqual(wsl[:3], ["wsl.exe", "-d", "Ubuntu-24.04"])
-            self.assertTrue(pipeline.linux_path(ROOT).startswith("/mnt/"))
+            self.assertIn("/mnt/c/repo/worker.py", wsl)
+
+    def test_native_linux_xpu_runs_python_directly(self):
+        native = dict(profile(backend="xpu"), host="wsl")
+        command = pipeline.runtime_command(native, ROOT / "feiyu_runtime/worker.py", "--kind", "tts")
+        self.assertEqual(command[0], "/test/environment/bin/python")
+        self.assertNotIn("wsl.exe", command)
+        self.assertEqual(command[2], str((ROOT / "feiyu_runtime/worker.py").resolve()))
 
     def test_unknown_host_rejected(self):
         with self.assertRaises(ValueError):

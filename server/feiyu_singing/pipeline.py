@@ -54,8 +54,8 @@ def linux_path(path):
 
 
 def runtime_command(runtime, script, *arguments):
-    command = [runtime["python"], "-B", linux_path(script), *map(str, arguments)]
     set_native_host(runtime)
+    command = [runtime["python"], "-B", linux_path(script), *map(str, arguments)]
     if runtime.get("python_library_dir") and not _native_host:
         command[:0] = ["env", "LD_LIBRARY_PATH=" + runtime["python_library_dir"]]
     if os.name == "nt" and not _native_host:

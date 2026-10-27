@@ -1,6 +1,6 @@
 # GPU runtime setup
 
-For new installations, follow [INSTALL_AGENT.md](INSTALL_AGENT.md). It explains GPU detection, choosing CUDA, WSL ROCm or native-Windows Intel XPU, isolated per-engine environments, model downloads, generated profiles, and actual HTTP/audio acceptance. AMD profiles are experimental and have not been tested on physical AMD hardware.
+For new installations, follow [INSTALL_AGENT.md](INSTALL_AGENT.md). It explains GPU detection, choosing CUDA, WSL ROCm or native-Windows/Linux Intel XPU, isolated per-engine environments, model downloads, generated profiles, and actual HTTP/audio acceptance. AMD profiles are experimental and have not been tested on physical AMD hardware. Linux XPU has passed all engine diagnostics plus TTS/RVC HTTP audio validation on one Arc A770M; singing audio remains pending.
 
 `runtime_profiles/cuda.json`, `runtime_profiles/rocm.json` and `runtime_profiles/xpu.json` pin the selected torch/torchaudio builds. `scripts/setup_runtime.py` installs a new environment; `scripts/register_runtime.py` validates and registers an existing compatible one. Neither changes model weights. A service entry's optional `runtime_profile` selects the new adapter; omission preserves the legacy package-local runner.
 

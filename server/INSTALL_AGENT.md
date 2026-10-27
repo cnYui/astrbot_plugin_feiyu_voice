@@ -167,7 +167,7 @@ wsl -d Ubuntu-24.04 -- uname -a
 |---|---|
 | 有可用 NVIDIA 独显 | `cuda`，先在 WSL 确认 `nvidia-smi` 可用 |
 | 只有 AMD，且该型号/驱动/WSL 组合在 AMD 官方支持范围内 | `rocm`，装对应 Windows WSL 驱动和 ROCm 运行时 |
-| 只有 Intel Arc / Core Ultra 核显，且 `torch.xpu` 能看到该 GPU | `xpu`，**在 Windows 原生运行**（不经过 WSL），见下方 “Intel XPU” |
+| 只有 Intel Arc / Core Ultra 核显，且 `torch.xpu` 能看到该 GPU | `xpu`，在 Windows 或 Linux 原生运行（不经过 WSL），见下方 “Intel XPU” |
 | 混合显卡 | 默认用已可用的 NVIDIA；用户要求 AMD 或 Intel 时明确选择对应后端 |
 | AMD 未列入支持组合、型号未知或 GPU 在 WSL 不可见 | 说明缺少哪项兼容条件；不能宣称 GPU 服务已装好 |
 
@@ -183,29 +183,56 @@ ROCm 采用 PyTorch 的 `cuda:0` 设备名，实际后端用 `torch.version.hip`
 
 ROCm 预设的 wheel 来自 PyTorch 官方 `rocm7.2` 索引；wheel 存在不等于每张 Radeon 都获支持。先核对目标硬件与所选版本的官方条件。需要另一 ROCm 版本时新增独立预设、明确版本并重新验证，不静默改动这些预设。AMD FP32 SVS 显存和速度尚无实测，显存不足时先缩短分段，任何 FP16 调整都应记录条件。
 
-### Intel XPU（Arc / Core Ultra 核显，Windows 原生）
+### Intel XPU（Arc / Core Ultra 核显，Windows / Linux 原生）
 
-Intel GPU 目前在 WSL2 里通常不可用，PyTorch 官方 XPU wheel 提供原生 Windows 版本，所以 `xpu` 预设直接在 Windows 上安装和运行，`runtime.local.json` 里 `host` 为 `windows`，服务端会直接启动该 Python，不再包一层 `wsl.exe`，路径也不做 `/mnt/` 转换。前置条件：最新 Intel 显卡驱动、`git`、`ffmpeg`、[`uv`](https://docs.astral.sh/uv/)（用它提供 Python 3.11）。先确认 GPU 可见：
+Intel GPU 目前在 WSL2 里通常不可用；PyTorch 官方 XPU wheel 提供原生 Windows 和 Linux 版本，所以 `xpu` 预设应直接在宿主系统安装和运行。Windows 的 `runtime.local.json` 里 `host` 为 `windows`，服务端会直接启动该 Python，不再包一层 `wsl.exe`，路径也不做 `/mnt/` 转换；Linux 本来就直接调用本机 Python。前置条件：最新 Intel 显卡驱动、`git`、`ffmpeg`、[`uv`](https://docs.astral.sh/uv/) 和 Python 3.11。
+
+原生 Linux 还需配置 Level Zero 和 OpenCL 驱动；只安装 PyTorch wheel 不够。Ubuntu 可安装下列软件包，`clinfo` 必须显示至少一个平台，否则 FFT 等算子会报 `OpenCL error -1`：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y libze-intel-gpu1 intel-opencl-icd clinfo  # 旧版 Ubuntu 的 Level Zero 包名可能是 intel-level-zero-gpu
+clinfo
+```
+
+然后确认 PyTorch 能看到 GPU：
 
 ```powershell
+# Windows PowerShell
 uv venv probe --python 3.11
 uv pip install --python probe\Scripts\python.exe --index-url https://download.pytorch.org/whl/xpu torch==2.11.0+xpu
 probe\Scripts\python.exe -c "import torch; print(torch.xpu.is_available(), torch.xpu.get_device_name(0))"
 ```
 
-输出 `True` 和显卡名才继续。然后在 Windows PowerShell 中、仓库 `server/` 目录里为每个引擎各装一个环境：
+```bash
+# Linux
+uv venv probe --python 3.11
+uv pip install --python probe/bin/python --index-url https://download.pytorch.org/whl/xpu torch==2.11.0+xpu
+probe/bin/python -c "import torch; print(torch.xpu.is_available(), torch.xpu.get_device_name(0))"
+```
+
+输出 `True` 和显卡名才继续。然后在仓库 `server/` 目录里为每个引擎各装一个环境：
 
 ```powershell
+# Windows PowerShell
 python scripts/setup_runtime.py --backend xpu --engine tts --destination C:\feiyu\xpu\tts
 python scripts/setup_runtime.py --backend xpu --engine rvc --destination C:\feiyu\xpu\rvc
 python scripts/setup_runtime.py --backend xpu --engine svs --destination C:\feiyu\xpu\svs   # 可选，按谱唱歌
 ```
 
-适配方式：XPU 不被上游 CosyVoice / Applio 识别，所以 TTS 先在 CPU 加载，再把 llm / flow / hift 与输入张量所用的设备移到 `xpu:0`；RVC 在 Applio 的 `Config` 中显式设置 `xpu:0`；SVS 使用 FP32（上游 FP16 autocast 只支持 CUDA）。适配器启动前设置 `PYTORCH_ENABLE_XPU_FALLBACK=1`，个别 XPU 暂不支持的算子会回退到 CPU，而不是让任务失败。核显与系统共享内存，速度明显低于独立显卡，请以实测为准（见 [VALIDATION.json](VALIDATION.json)）。
+```bash
+# Linux
+feiyu_python="$(uv python find 3.11)"
+"$feiyu_python" scripts/setup_runtime.py --backend xpu --engine tts --python "$feiyu_python" --destination "$HOME/.local/share/feiyu-voice/xpu/tts"
+"$feiyu_python" scripts/setup_runtime.py --backend xpu --engine rvc --python "$feiyu_python" --destination "$HOME/.local/share/feiyu-voice/xpu/rvc"
+"$feiyu_python" scripts/setup_runtime.py --backend xpu --engine svs --python "$feiyu_python" --destination "$HOME/.local/share/feiyu-voice/xpu/svs"  # 可选，按谱唱歌
+```
+
+适配方式：XPU 不被上游 CosyVoice / Applio 识别，所以 TTS 先在 CPU 加载，再把 llm / flow / hift 与输入张量所用的设备移到 `xpu:0`；Linux 的 float64 F0 预测器固定在 CPU，避开 XPU 不支持的 weight_norm kernel；RVC 在 Applio 的 `Config` 中显式设置 `xpu:0`；SVS 使用 FP32（上游 FP16 autocast 只支持 CUDA）。适配器启动前设置 `PYTORCH_ENABLE_XPU_FALLBACK=1`，个别 XPU 暂不支持的算子会回退到 CPU，而不是让任务失败。核显与系统共享内存，速度明显低于独立显卡，请以实测为准（见 [VALIDATION.json](VALIDATION.json)）。Linux Arc A770M 已通过三种引擎诊断和 TTS／RVC 真实 HTTP 验证；Linux 按谱唱歌仍需额外权重与已对齐参考进行音频验收。
 
 ## 2. 安装独立推理环境
 
-> 下面的命令针对 WSL（CUDA / ROCm）。Intel XPU 请用上一节的 Windows 命令。
+> 下面的通用命令以 WSL（CUDA / ROCm）为例；原生 Linux 安装 XPU 时使用上一节命令。
 
 在 WSL Ubuntu 安装基础组件（Ubuntu 镜像中包名可能略有差异）：
 

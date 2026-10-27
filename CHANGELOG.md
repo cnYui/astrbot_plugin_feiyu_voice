@@ -4,13 +4,13 @@
 
 ## 2026-10-27 · Intel XPU（Arc / Core Ultra 核显）实验支持
 
-- 增加 `xpu` 后端预设（`runtime_profiles/xpu.json`，torch / torchaudio 2.11.0+xpu），TTS、RVC、SVS 三条路线都能在 Intel GPU 上推理。XPU 在 Windows 上有原生 PyTorch wheel，所以这个预设**直接在 Windows 上安装和运行**：运行环境 profile 增加 `host: windows`，服务端启动 Python 时不再包 `wsl.exe`，也不做 `/mnt/` 路径转换；`setup_runtime.py --backend xpu` 在 Windows 上用 `uv` 提供 Python 3.11。
+- 增加 `xpu` 后端预设（`runtime_profiles/xpu.json`，torch / torchaudio 2.11.0+xpu），TTS、RVC、SVS 三条路线都能在 Intel GPU 上推理。XPU 在 Windows 和 Linux 上有原生 PyTorch wheel，所以这个预设**直接在宿主系统安装和运行**：Windows 运行环境 profile 增加 `host: windows`，服务端启动 Python 时不再包 `wsl.exe`，也不做 `/mnt/` 路径转换；Linux 直接调用本机 Python；`setup_runtime.py --backend xpu` 在 Windows 上用 `uv` 提供 Python 3.11。
 - 适配方式：TTS 先在 CPU 加载再把 llm / flow / hift 与输入张量所用设备移到 `xpu:0`；RVC 显式设置 `xpu:0`，RMVPE 也在 XPU 上跑；SVS 用 FP32（上游 FP16 autocast 只支持 CUDA）。设备相关的代码集中到 `feiyu_runtime/common.py` 的 `accelerator()` / `device_type()` / `seed_all()`，CUDA 与 ROCm 路径保持原样。适配器启动前设置 `PYTORCH_ENABLE_XPU_FALLBACK=1`。
 - Windows 原生运行时，torchaudio 2.9 以后的 `load` 会走需要共享 FFmpeg DLL 的 torchcodec，适配器改用 soundfile 读取参考音频（上游参数 `backend='soundfile'` 本来就是这个意思）。
 - 修复 `requirements-tts.txt` 漏了 CosyVoice 数据处理用到的 `pyarrow`（缺它时 TTS 在载入模型的 hyperpyyaml 阶段就报 `No module named 'pyarrow'`）。
 - 修复 Windows 上 Git 的 `core.autocrlf` 会把 `assets/singing/phone_set.json` 改成 CRLF、导致 SHA 校验失败的问题：`.gitattributes` 把它标为 `-text`。
 - 新增 `configs/voice_service.xpu.example.json` 与 `configs/singing.xpu.example.json`；单元测试增加 XPU 后端、FP16 拒绝、原生 Windows 命令拼装等用例。
-- **仅在一台 Arc 130T 核显（Core Ultra 5 225H，驱动 32.0.101.8243）上验证过**，数据见 `server/VALIDATION.json`：TTS 稳态约 3–4× 实时（同机 CPU 约 6–8×），15 秒演示歌曲按谱合成加换声约 5 分钟。没有做与 CUDA 输出的听感对比，也没有独显 Arc 与 Linux XPU 的验证。
+- Windows 在一台 Arc 130T 核显（Core Ultra 5 225H，驱动 32.0.101.8243）上验证过：TTS 稳态约 3–4× 实时（同机 CPU 约 6–8×），15 秒演示歌曲按谱合成加换声约 5 分钟。Linux 在 Arc A770M 上通过三种引擎诊断和 TTS／RVC 真实 HTTP 验证；Linux TTS 的 float64 F0 预测器固定在 CPU，避开 XPU 不支持的 weight_norm kernel。没有做与 CUDA 输出的听感对比，Linux 按谱唱歌音频仍待验证，数据见 `server/VALIDATION.json`。
 
 ## 2026-10-25 · 使用指南与素材署名
 

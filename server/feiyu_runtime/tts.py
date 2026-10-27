@@ -15,6 +15,16 @@ def move_to_xpu(torch, voice, device):
         getattr(voice.model, name).to(device).eval()
     voice.model.device = device
     voice.frontend.device = device
+    if sys.platform == "linux":
+        # Linux XPU cannot run the float64 weight_norm kernel used by this predictor.
+        f0 = voice.model.hift.f0_predictor
+        f0.to("cpu").eval()
+        original_forward = f0.forward
+
+        def f0_forward(speech_feat, *args, **kwargs):
+            return original_forward(speech_feat.cpu(), *args, **kwargs)
+
+        f0.forward = f0_forward
 
 
 def main(package, profile, argv=None):
